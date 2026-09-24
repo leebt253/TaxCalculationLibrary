@@ -214,9 +214,3 @@ src/shared_calculation/
 ├── adapters.py      # CSV boundary adapter
 └── tests/
 ```
-
-Xem [specification.md](docs/specification.md) cho contract đầy đủ, [recommendation.md](docs/recommendation.md) cho định hướng kiến trúc và [coding-rule.md](docs/coding-rule.md) cho coding rules.
-
-## Phạm vi V1
-
-V1 không bao gồm database persistence, web API, UI, currency conversion, advanced export, duplicate aggregation, refund hoặc quantity/price âm.
