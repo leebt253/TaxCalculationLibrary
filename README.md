@@ -72,7 +72,8 @@ Monetary line values are rounded to two decimal places using the documented V1 `
 ## Project Layout
 
 ```text
-shared_calculation/
+src/shared_calculation/
+├── __init__.py
 ├── api.py
 ├── models.py
 ├── validation.py
@@ -94,4 +95,4 @@ The test suite should cover calculations, mappings, preservation of extra fields
 
 ## Scope
 
-This V1 library intentionally excludes database persistence, web APIs, UI, currency conversion, advanced exports, duplicate aggregation, refunds, and negative quantities or prices. See [specification.md](specification.md) for the complete contract and [recommendation.md](recommendation.md) for the implementation approach.
+This V1 library intentionally excludes database persistence, web APIs, UI, currency conversion, advanced exports, duplicate aggregation, refunds, and negative quantities or prices. See [specification.md](docs/specification.md) for the complete contract, [recommendation.md](docs/recommendation.md) for the implementation approach, and [coding-rule.md](docs/coding-rule.md) for project coding rules.
