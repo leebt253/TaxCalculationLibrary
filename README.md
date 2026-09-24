@@ -124,10 +124,13 @@ Mỗi phần tử trong `result.items` là `CalculationItem`:
 
 ```python
 item.original_data  # toàn bộ record ban đầu, gồm extra columns
-item.before_tax     # Decimal, 2 chữ số thập phân
-item.vat            # Decimal, 2 chữ số thập phân
-item.after_tax      # Decimal, 2 chữ số thập phân
+item.before_tax     # Decimal, bỏ các chữ số 0 thập phân không cần thiết
+item.vat            # Decimal, bỏ các chữ số 0 thập phân không cần thiết
+item.after_tax      # Decimal, bỏ các chữ số 0 thập phân không cần thiết
 ```
+
+Khi in kết quả, phần thập phân không có ý nghĩa được loại bỏ: `Decimal("1.00")`
+được in là `1`, còn `Decimal("1.10")` được in là `1.1`.
 
 Với record Notebook ở trên:
 

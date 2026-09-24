@@ -60,6 +60,29 @@ def test_rounds_each_line_before_totals():
     assert result.total_after_tax == Decimal("2.02")
 
 
+def test_prints_money_without_insignificant_decimal_zeroes():
+    result = calculate(
+        [
+            {"name": "No VAT", "count": 1, "price": 1, "tax": Decimal("0")},
+            {"name": "Ten Percent", "count": 1, "price": 1, "tax": Decimal("0.1")},
+        ],
+        METADATA,
+    )
+
+    assert str(result.items[0].before_tax) == "1"
+    assert str(result.items[0].vat) == "0"
+    assert str(result.items[1].vat) == "0.1"
+    assert str(result.items[1].after_tax) == "1.1"
+
+
+def test_empty_input_returns_empty_result_with_zero_totals():
+    result = calculate([], METADATA)
+
+    assert result.items == []
+    assert result.total_before_tax == Decimal("0")
+    assert result.total_after_tax == Decimal("0")
+
+
 def test_invalid_row_fails_fast_with_structured_error():
     with pytest.raises(ValidationError) as error:
         calculate(
