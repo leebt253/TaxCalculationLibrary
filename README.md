@@ -1,55 +1,42 @@
 # Tax Calculation Library
 
-Thư viện Python dùng để validate dữ liệu dạng bảng và tính tiền trước thuế, VAT, tiền sau thuế theo từng dòng và cho toàn bộ đơn hàng.
+A small Python shared library for validating item records and calculating line-level and order-level tax amounts.
 
-Thư viện không cần database, web server hoặc framework ứng dụng. Tiền tệ mặc định là KRW.
+## Features
 
-## Cài đặt
+- Metadata-driven column mapping.
+- Per-line before-tax, VAT, and after-tax calculations.
+- Decimal-based monetary arithmetic.
+- Two-decimal monetary output.
+- Preservation of original and extra input columns.
+- Fail-fast validation with structured errors.
+- No database, web server, or framework required.
 
-Khuyến nghị sử dụng virtual environment:
+## Installation
 
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install -e ".[test]"
-```
+From the project directory, install the package in editable mode after packaging metadata has been added:
 
-Nếu chỉ sử dụng thư viện, có thể cài không kèm test dependency:
-
-```powershell
+```bash
 python -m pip install -e .
 ```
 
-## Gọi thư viện
+For development and tests, install the project's development dependencies when provided by the package configuration.
 
-Public API duy nhất là:
-
-```python
-calculate(data, metadata)
-```
-
-Ví dụ đầy đủ:
+## Usage
 
 ```python
 from decimal import Decimal
 
-from shared_calculation import calculate
+from shared_calculation.api import calculate
 
-data = [
+records = [
     {
         "name": "Notebook",
         "count": 2,
         "price": 1500,
         "tax": Decimal("0.1"),
         "sku": "NB-001",
-    },
-    {
-        "name": "Pen",
-        "count": 3,
-        "price": 100,
-        "tax": Decimal("0"),
-        "sku": "P-001",
-    },
+    }
 ]
 
 metadata = {
@@ -62,158 +49,50 @@ metadata = {
     },
 }
 
-result = calculate(data, metadata)
+result = calculate(records, metadata)
 
-print(result.items)
-print(result.total_before_tax)  # Decimal("3300.00")
-print(result.total_after_tax)   # Decimal("3600.00")
-```
-
-## Input
-
-### `data`
-
-`data` là một iterable các record dạng mapping, thông thường là `list[dict]`.
-
-Mỗi record phải cung cấp bốn logical field bắt buộc. Tên key thực tế có thể khác và được khai báo trong `metadata["column_mapping"]`.
-
-| Logical field | Kiểu | Điều kiện |
-|---|---|---|
-| `item_name` | `str` | Không được rỗng |
-| `quantity` | `int` | Số nguyên dương |
-| `unit_price` | `int` | Số nguyên dương |
-| `vat_rate` | `Decimal` | Trong khoảng `0..1`, bao gồm hai biên |
-
-VAT được biểu diễn dưới dạng tỷ lệ:
-
-- `Decimal("0")`: 0%.
-- `Decimal("0.1")`: 10%.
-- `Decimal("1")`: 100%.
-
-Không dùng `float` cho VAT hoặc tiền. Ví dụ đúng là `Decimal("0.1")`, không phải `0.1`.
-
-### `metadata`
-
-```python
-metadata = {
-    "has_header": True,
-    "column_mapping": {
-        "item_name": "name",
-        "quantity": "count",
-        "unit_price": "price",
-        "vat_rate": "tax",
-    },
-}
-```
-
-- `has_header`: mô tả source có header hay không.
-- `column_mapping`: ánh xạ logical field sang tên cột thực tế.
-- Các cột bổ sung không nằm trong mapping vẫn được giữ nguyên.
-
-## Output
-
-`calculate` trả về một `CalculationResult` gồm:
-
-```python
-result.items
-result.total_before_tax
-result.total_after_tax
-```
-
-Mỗi phần tử trong `result.items` là `CalculationItem`:
-
-```python
-item.original_data  # toàn bộ record ban đầu, gồm extra columns
-item.before_tax     # Decimal, bỏ các chữ số 0 thập phân không cần thiết
-item.vat            # Decimal, bỏ các chữ số 0 thập phân không cần thiết
-item.after_tax      # Decimal, bỏ các chữ số 0 thập phân không cần thiết
-```
-
-Khi in kết quả, phần thập phân không có ý nghĩa được loại bỏ: `Decimal("1.00")`
-được in là `1`, còn `Decimal("1.10")` được in là `1.1`.
-
-Với record Notebook ở trên:
-
-```python
 item = result.items[0]
-
 assert item.original_data["sku"] == "NB-001"
 assert item.before_tax == Decimal("3000.00")
-assert item.vat == Decimal("300.00")
 assert item.after_tax == Decimal("3300.00")
-assert result.total_before_tax == Decimal("3300.00")
-assert result.total_after_tax == Decimal("3600.00")
+assert result.total_before_tax == Decimal("3000.00")
+assert result.total_after_tax == Decimal("3300.00")
 ```
 
-Công thức cho mỗi dòng:
+`vat_rate` is a ratio: `Decimal("0.1")` means 10%. Required fields are `item_name`, `quantity`, `unit_price`, and `vat_rate`. Quantity and unit price must be positive integers; VAT must be between `0` and `1`, inclusive.
 
-```text
-before_tax = quantity * unit_price
-vat        = before_tax * vat_rate
-after_tax  = before_tax + vat
-```
+## Behavior
 
-Mỗi dòng được tính độc lập. Hai dòng có cùng `item_name` không bị gộp. Giá trị dòng được làm tròn đến hai chữ số bằng `ROUND_HALF_UP` trước khi cộng total.
+Each row is calculated independently. Rows with the same item name are not aggregated. All source fields, including fields not listed in `column_mapping`, are retained in `original_data`.
 
-## Validation và lỗi
+Invalid metadata or data raises a structured validation exception. The library fails fast and does not silently skip invalid rows.
 
-Thư viện fail-fast và không tự động bỏ qua dòng lỗi. Khi input không hợp lệ, thư viện raise `ValidationError`:
+Monetary line values are rounded to two decimal places using the documented V1 `Decimal` rounding policy before totals are calculated.
 
-```python
-from decimal import Decimal
-
-from shared_calculation import ValidationError, calculate
-
-try:
-    calculate(
-        [{"name": "Notebook", "count": 0, "price": 1500, "tax": Decimal("0.1")}],
-        metadata,
-    )
-except ValidationError as error:
-    print(error.code)    # invalid_integer
-    print(error.row)     # 0
-    print(error.field)   # quantity
-    print(error.value)   # 0
-    print(error.message)
-```
-
-Các lỗi được kiểm tra gồm thiếu mapping, thiếu field, tên item rỗng, quantity/price không dương, VAT ngoài `0..1` và giá trị không thể chuyển đổi.
-
-## CSV adapter tùy chọn
-
-Nếu cần đọc CSV ở boundary, có thể dùng adapter:
-
-```python
-from shared_calculation.adapters import read_csv_records
-
-records = read_csv_records("items.csv")
-result = calculate(records, metadata)
-```
-
-CSV chỉ là adapter đầu vào; calculation core vẫn làm việc với records và metadata.
-
-## Chạy test
-
-```powershell
-python -m pytest
-```
-
-Hoặc với môi trường đã tạo trong repository:
-
-```powershell
-.venv\Scripts\python.exe -m pytest
-```
-
-## Cấu trúc dự án
+## Project Layout
 
 ```text
 src/shared_calculation/
 ├── __init__.py
-├── api.py           # calculate()
-├── models.py        # CalculationResult, CalculationItem
-├── validation.py    # metadata và input validation
-├── calculation.py   # Decimal calculations
-├── exceptions.py    # ValidationError
-├── adapters.py      # CSV boundary adapter
+├── api.py
+├── models.py
+├── validation.py
+├── calculation.py
+├── exceptions.py
+├── adapters.py
 └── tests/
 ```
+
+## Testing
+
+Run the test suite with:
+
+```bash
+python -m pytest
+```
+
+The test suite should cover calculations, mappings, preservation of extra fields, boundary VAT rates, rounding, and structured validation failures.
+
+## Scope
+
+This V1 library intentionally excludes database persistence, web APIs, UI, currency conversion, advanced exports, duplicate aggregation, refunds, and negative quantities or prices. See [specification.md](docs/specification.md) for the complete contract, [recommendation.md](docs/recommendation.md) for the implementation approach, and [coding-rule.md](docs/coding-rule.md) for project coding rules.
